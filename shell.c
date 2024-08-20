@@ -123,6 +123,14 @@ char **split_line(char *line)
 		token = strtok(NULL, " \t\r\n\a");
 	}
 	tokens[position] = NULL;
+	
+	/* If no tokens were found, add an empty string as the first token */
+	if (position == 0)
+	{
+		tokens[0] = "";
+		tokens[1] = NULL;
+	}
+	
 	return (tokens);
 }
 
@@ -139,8 +147,8 @@ int execute_command(char **args)
 	char *path, *token;
 	char cmd_full_path[1024];
 
-	if (args[0] == NULL)
-		return (1);
+	if (args[0] == NULL || args[0][0] == '\0')
+		return (0);  /* Return 0 for empty or whitespace-only commands */
 
 	pid = fork();
 	if (pid == 0)
