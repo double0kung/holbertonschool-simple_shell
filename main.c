@@ -1,18 +1,26 @@
 #include "shell.h"
 
-
-int main (int ac, char **av, char** env)
+/**
+ * main - Entry point for the shell
+ * @ac: Argument count (unused)
+ * @av: Argument vector (unused)
+ * @env: Environment variables (unused)
+ *
+ * Return: Always 0
+ */
+int main(int ac, char **av, char **env)
 {
+	(void)ac;
+	(void)av;
+	(void)env;
+
 	if (isatty(STDIN_FILENO))
 	{
-		printf("Entered interactive mode\n");
 		shell_interactive_mode();
 	}
 	else
 	{
-		printf("Entered non-interactive mode\n");
 		shell_non_interactive_mode();
 	}
-	
 	return (0);
 }
