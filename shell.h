@@ -12,6 +12,6 @@ void shell_non_interactive_mode(void);
 char *read_line(void);
 char *read_stream(void);
 char **split_line(char *line);
-int execute_arguments(char **args);
+int execute_command(char **args);
 
 #endif /* SHELL_H */

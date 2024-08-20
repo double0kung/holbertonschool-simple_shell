@@ -1,26 +1,25 @@
 #include "shell.h"
+#include <string.h>
+#include <sys/wait.h>
 
 /**
  * shell_interactive_mode - Runs the shell in interactive mode
  */
 void shell_interactive_mode(void)
 {
-	int status = -1;
 	char *line;
+	char **args;
+	int status;
 
 	do {
 		printf("$ ");
 		line = read_line();
-		/* split string into args or tokens */
-		/* check and execute args */
-		/* args = split_line(line); */
-		/* status = execute_arguments(args); */
-		printf("%s\n", line);
+		args = split_line(line);
+		status = execute_command(args);
 
 		free(line);
-		if (status >= 0)
-			exit(status);
-	} while (status == -1);
+		free(args);
+	} while (status);
 }
 
 /**
@@ -28,18 +27,22 @@ void shell_interactive_mode(void)
  */
 void shell_non_interactive_mode(void)
 {
-	int status = -1;
 	char *line;
+	char **args;
+	int status;
 
-	do {
-		line = read_stream();
-		printf("%s\n", line);
+	while ((line = read_stream()) != NULL)
+	{
+		args = split_line(line);
+		status = execute_command(args);
+
 		free(line);
+		free(args);
 		if (status >= 0)
 		{
 			exit(status);
 		}
-	} while (status == -1);
+	}
 }
 
 /**
@@ -51,20 +54,13 @@ char *read_line(void)
 {
 	char *line = NULL;
 	size_t bufsize = 0;
+	ssize_t characters;
 
-	if (getline(&line, &bufsize, stdin) == -1)
+	characters = getline(&line, &bufsize, stdin);
+	if (characters == -1)
 	{
-		if (feof(stdin))
-		{
-			free(line);
-			exit(EXIT_SUCCESS);
-		}
-		else
-		{
-			free(line);
-			perror("read_line");
-			exit(EXIT_FAILURE);
-		}
+		free(line);
+		exit(EXIT_SUCCESS);
 	}
 	return (line);
 }
@@ -72,42 +68,102 @@ char *read_line(void)
 /**
  * read_stream - Reads a line from stdin in non-interactive mode
  *
- * Return: Pointer to the read line
+ * Return: Pointer to the read line, or NULL if EOF is reached
  */
 char *read_stream(void)
 {
 	char *line = NULL;
 	size_t bufsize = 0;
+	ssize_t characters;
 
-	if (getline(&line, &bufsize, stdin) == -1)
+	characters = getline(&line, &bufsize, stdin);
+	if (characters == -1)
 	{
-		if (feof(stdin))
-		{
-			free(line);
-			exit(EXIT_SUCCESS);
-		}
-		else
-		{
-			free(line);
-			perror("read_stream");
-			exit(EXIT_FAILURE);
-		}
+		free(line);
+		return (NULL);
 	}
 	return (line);
 }
 
 /**
- * execute_arguments - Executes the command with given arguments
+ * split_line - Splits a line into tokens
+ * @line: The line to split
+ *
+ * Return: Array of tokens
+ */
+char **split_line(char *line)
+{
+	int bufsize = 64, position = 0;
+	char **tokens = malloc(bufsize * sizeof(char *));
+	char *token;
+
+	if (!tokens)
+	{
+		fprintf(stderr, "allocation error\n");
+		exit(EXIT_FAILURE);
+	}
+
+	token = strtok(line, " \t\r\n\a");
+	while (token != NULL)
+	{
+		tokens[position] = token;
+		position++;
+
+		if (position >= bufsize)
+		{
+			bufsize += 64;
+			tokens = realloc(tokens, bufsize * sizeof(char *));
+			if (!tokens)
+			{
+				fprintf(stderr, "allocation error\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+
+		token = strtok(NULL, " \t\r\n\a");
+	}
+	tokens[position] = NULL;
+	return (tokens);
+}
+
+/**
+ * execute_command - Executes a command
  * @args: Array of arguments
  *
- * Return: Status of execution
+ * Return: 1 if the shell should continue running, 0 if it should terminate
  */
-int execute_arguments(char **args)
+int execute_command(char **args)
 {
-	if (!args[0])
+	pid_t pid;
+	int status;
+
+	if (args[0] == NULL)
 	{
-		return (-1);
+		return (1);
 	}
-	/* Add command execution logic here */
-	return (0);
+
+	pid = fork();
+	if (pid == 0)
+	{
+		/* Child process */
+		if (execve(args[0], args, environ) == -1)
+		{
+			perror("hsh");
+		}
+		exit(EXIT_FAILURE);
+	}
+	else if (pid < 0)
+	{
+		/* Error forking */
+		perror("hsh");
+	}
+	else
+	{
+		/* Parent process */
+		do {
+			waitpid(pid, &status, WUNTRACED);
+		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+	}
+
+	return (1);
 }
