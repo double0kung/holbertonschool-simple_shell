@@ -1,6 +1,9 @@
 #include "shell.h"
 #include <string.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 /**
  * shell_interactive_mode - Runs the shell in interactive mode
@@ -19,7 +22,7 @@ void shell_interactive_mode(void)
 
 		free(line);
 		free(args);
-	} while (status);
+	} while (status != -1);  /* -1 could be your exit condition */
 }
 
 /**
@@ -29,7 +32,7 @@ void shell_non_interactive_mode(void)
 {
 	char *line;
 	char **args;
-	int status;
+	int status = 0;
 
 	while ((line = read_stream()) != NULL)
 	{
@@ -38,11 +41,8 @@ void shell_non_interactive_mode(void)
 
 		free(line);
 		free(args);
-		if (status >= 0)
-		{
-			exit(status);
-		}
 	}
+	exit(status);
 }
 
 /**
@@ -136,26 +136,42 @@ int execute_command(char **args)
 {
 	pid_t pid;
 	int status;
+	char *path, *token;
+	char cmd_full_path[1024];
 
 	if (args[0] == NULL)
-	{
 		return (1);
-	}
 
 	pid = fork();
 	if (pid == 0)
 	{
 		/* Child process */
-		if (execve(args[0], args, environ) == -1)
+		if (strchr(args[0], '/') != NULL)
 		{
-			perror("hsh");
+			/* If command includes a path, execute it directly */
+			execve(args[0], args, environ);
 		}
-		exit(EXIT_FAILURE);
+		else
+		{
+			/* If not, search in PATH */
+			path = getenv("PATH");
+			token = strtok(path, ":");
+			while (token != NULL)
+			{
+				snprintf(cmd_full_path, sizeof(cmd_full_path), "%s/%s", token, args[0]);
+				execve(cmd_full_path, args, environ);
+				token = strtok(NULL, ":");
+			}
+		}
+		/* If we get here, the command was not found */
+		fprintf(stderr, "%s: command not found\n", args[0]);
+		exit(127); /* 127 is the standard exit code for "command not found" */
 	}
 	else if (pid < 0)
 	{
 		/* Error forking */
 		perror("hsh");
+		return (1);
 	}
 	else
 	{
@@ -163,7 +179,14 @@ int execute_command(char **args)
 		do {
 			waitpid(pid, &status, WUNTRACED);
 		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-	}
 
-	return (1);
+		if (WIFEXITED(status))
+		{
+			return (WEXITSTATUS(status));
+		}
+		else
+		{
+			return (1);
+		}
+	}
 }
