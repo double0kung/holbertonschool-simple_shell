@@ -197,6 +197,7 @@ int execute_command(char **args)
 		}
 		/* If we get here, the command was not found */
 		fprintf(stderr, "%s: command not found\n", args[0]);
+		return (1);
 		exit(127); /* 127 is the standard exit code for "command not found" */
 	}
 	else if (pid < 0)
