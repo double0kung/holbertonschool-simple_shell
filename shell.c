@@ -1,3 +1,4 @@
+
 #include "shell.h"
 #include <string.h>
 #include <sys/wait.h>
@@ -148,7 +149,8 @@ char **split_line(char *line)
 int execute_command(char **args)
 {
 	pid_t pid;
-	int status, i = 0;
+	int status;
+	long unsigned int i = 0;
 	char *path, *token;
 	char cmd_full_path[1024];
 	char *builtin_func_list[] = {
