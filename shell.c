@@ -19,10 +19,15 @@ void shell_interactive_mode(void)
 		line = read_line();
 		args = split_line(line);
 		status = execute_command(args);
-
+		
 		free(line);
 		free(args);
-	} while (status != -1);  /* -1 could be your exit condition */
+
+		if (status >= 0)
+		{
+			exit(status);
+		}
+	} while (status == -1);  /* -1 could be your exit condition */
 }
 
 /**
@@ -143,12 +148,28 @@ char **split_line(char *line)
 int execute_command(char **args)
 {
 	pid_t pid;
-	int status;
+	int status, i = 0;
 	char *path, *token;
 	char cmd_full_path[1024];
+	char *builtin_func_list[] = {
+		"env",
+		"exit"
+	};
+	int  (*builtin_func[])(char**) = {
+		&own_env,
+		&own_exit
+	};
 
 	if (args[0] == NULL || args[0][0] == '\0')
-		return (0);  /* Return 0 for empty or whitespace-only commands */
+		return (-1);  /* Return 0 for empty or whitespace-only commands */
+	while (i < sizeof(builtin_func_list) / sizeof(char *))
+	{
+		if (strcmp(args[0], builtin_func_list[i]) == 0)
+		{
+			return ((*builtin_func[i])(args));
+		}
+		i++;
+	}
 
 	pid = fork();
 	if (pid == 0)
@@ -161,6 +182,7 @@ int execute_command(char **args)
 		}
 		else
 		{
+			
 			/* If not, search in PATH */
 			path = getenv("PATH");
 			token = strtok(path, ":");
@@ -190,11 +212,34 @@ int execute_command(char **args)
 
 		if (WIFEXITED(status))
 		{
-			return (WEXITSTATUS(status));
+			return (-1);
 		}
 		else
 		{
 			return (1);
 		}
 	}
+}
+
+int own_exit(char **args)
+{
+	(void)(**args);
+
+	return (0);
+}
+
+int own_env(char *
+
+*args)
+{
+	int i = 0;
+	(void)(**args);
+
+	while (environ[i])
+	{
+		write(STDOUT_FILENO, environ[i], strlen(environ[i]));
+		write(STDOUT_FILENO, "\n", 1);
+		i++;
+	}
+	return (-1);
 }

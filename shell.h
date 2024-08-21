@@ -14,4 +14,7 @@ char *read_stream(void);
 char **split_line(char *line);
 int execute_command(char **args);
 
+int own_exit(char **args);
+int own_env();
+
 #endif /* SHELL_H */
