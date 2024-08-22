@@ -13,6 +13,8 @@ char *read_line(void);
 char *read_stream(void);
 char **split_line(char *line);
 int execute_command(char **args);
+char *find_comman(char *command);
+int fork_and_exec(char *command, char **args);
 
 int own_exit(char **args);
 int own_env();

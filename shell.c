@@ -1,4 +1,3 @@
-
 #include "shell.h"
 #include <string.h>
 #include <sys/wait.h>
@@ -20,7 +19,7 @@ void shell_interactive_mode(void)
 		line = read_line();
 		args = split_line(line);
 		status = execute_command(args);
-		
+
 		free(line);
 		free(args);
 
@@ -129,15 +128,86 @@ char **split_line(char *line)
 		token = strtok(NULL, " \t\r\n\a");
 	}
 	tokens[position] = NULL;
-	
+
 	/* If no tokens were found, add an empty string as the first token */
 	if (position == 0)
 	{
 		tokens[0] = "";
 		tokens[1] = NULL;
 	}
-	
+
 	return (tokens);
+}
+
+/**
+ * find_command - find command in PATH
+ * @command: name of the program to search for
+ * Return: Full path of command or NULL
+ */
+char *find_command(char *command)
+{
+	char *path, *path_copy, *file_path, *token;
+	struct stat buf;
+
+	path = getenv("PATH");
+	if (!path)
+		return (NULL);
+	path_copy = strdup(path);
+	token = strtok(path_copy, ":");
+	while (token != NULL)
+	{
+		file_path = malloc(strlen(token) + strlen(command) + 2);
+		snprintf(file_path, sizeof(file_path), "%s/%s", token, command);
+		if (stat(file_path, &buf) == 0)
+		{
+			free(path_copy);
+			return (file_path);
+		}
+		free(file_path);
+		token = strtok(NULL, ":");
+	}
+	free(path_copy);
+	return (NULL);
+}
+
+/**
+ * fork_and_exec - fork then exec
+ * @command: command to fork
+ * @args: args to exec
+ * Return: -1 or 1
+ */
+int fork_and_exec(char *command, char **args)
+{
+	pid_t pid;
+	int status;
+
+	pid = fork();
+	if (pid == 0)
+	{
+		execve(command, args, environ);
+	}
+	else if (pid < 0)
+	{
+		perror("hsh");
+		return (1);
+	}
+	else
+	{
+		/* Parent process */
+		do {
+			waitpid(pid, &status, WUNTRACED);
+		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+
+		if (WIFEXITED(status))
+		{
+			return (-1);
+		}
+		else
+		{
+			return (1);
+		}
+	}
+
 }
 
 /**
@@ -151,7 +221,7 @@ int execute_command(char **args)
 	pid_t pid;
 	int status;
 	long unsigned int i = 0;
-	char *path, *token;
+	char *path, *token, *command_path;
 	char cmd_full_path[1024];
 	char *builtin_func_list[] = {
 		"env",
@@ -173,54 +243,19 @@ int execute_command(char **args)
 		i++;
 	}
 
-	pid = fork();
-	if (pid == 0)
+	if (strchr(args[0], '/') != NULL)
 	{
-		/* Child process */
-		if (strchr(args[0], '/') != NULL)
-		{
-			/* If command includes a path, execute it directly */
-			execve(args[0], args, environ);
-		}
-		else
-		{
-			
-			/* If not, search in PATH */
-			path = getenv("PATH");
-			token = strtok(path, ":");
-			while (token != NULL)
-			{
-				snprintf(cmd_full_path, sizeof(cmd_full_path), "%s/%s", token, args[0]);
-				execve(cmd_full_path, args, environ);
-				token = strtok(NULL, ":");
-			}
-		}
-		/* If we get here, the command was not found */
-		fprintf(stderr, "%s: command not found\n", args[0]);
-		return (1);
-		exit(127); /* 127 is the standard exit code for "command not found" */
-	}
-	else if (pid < 0)
-	{
-		/* Error forking */
-		perror("hsh");
-		return (1);
+		return (fork_and_exec(args[0], args));
 	}
 	else
 	{
-		/* Parent process */
-		do {
-			waitpid(pid, &status, WUNTRACED);
-		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-
-		if (WIFEXITED(status))
+		command_path = find_command(args[0]);
+		if (command_path == NULL)
 		{
-			return (-1);
+			fprintf(stderr, "%s: command not found\n", args[0]);
+			exit(127);
 		}
-		else
-		{
-			return (1);
-		}
+		return (fork_and_exec(command_path, args));
 	}
 }
 
