@@ -5,6 +5,23 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+char* _getenv(char* name)
+{
+	int i = 0;
+	char *token;
+	while (environ[i])
+	{
+		token = strtok(environ[i], "=");
+		if (!strcmp(token, name))
+		{
+			token = strtok(NULL, "=");
+			if (token)
+				return (token);
+		}
+		i++;
+	}
+}
+
 /**
  * shell_interactive_mode - Runs the shell in interactive mode
  */
@@ -149,7 +166,7 @@ char *find_command(char *command)
 	char *path, *path_copy, *file_path, *token;
 	struct stat buf;
 
-	path = getenv("PATH");
+	path = _getenv("PATH");
 	if (!path)
 		return (NULL);
 	path_copy = strdup(path);

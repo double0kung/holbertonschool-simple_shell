@@ -14,6 +14,7 @@ char *read_stream(void);
 char **split_line(char *line);
 int execute_command(char **args);
 char *find_comman(char *command);
+char *_getenv(char *name);
 int fork_and_exec(char *command, char **args);
 
 int own_exit(char **args);
