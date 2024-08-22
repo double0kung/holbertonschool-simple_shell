@@ -185,6 +185,8 @@ int fork_and_exec(char *command, char **args)
 	if (pid == 0)
 	{
 		execve(command, args, environ);
+		perror("execve failed");
+		exit(EXIT_FAILURE);
 	}
 	else if (pid < 0)
 	{
@@ -198,7 +200,7 @@ int fork_and_exec(char *command, char **args)
 
 	if (WIFEXITED(status))
 	{
-		return (-1);
+		return WEXITSTATUS(status);
 	}
 	else
 	{
