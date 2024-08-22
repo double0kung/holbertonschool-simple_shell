@@ -248,7 +248,7 @@ int execute_command(char **args)
 		if (command_path == NULL)
 		{
 			fprintf(stderr, "%s: command not found\n", args[0]);
-			exit(127);
+			return (127);
 		}
 		return (fork_and_exec(command_path, args));
 	}
