@@ -157,7 +157,7 @@ char *find_command(char *command)
 	while (token != NULL)
 	{
 		file_path = malloc(strlen(token) + strlen(command) + 2);
-		snprintf(file_path, sizeof(file_path), "%s/%s", token, command);
+		snprintf(file_path, 1024, "%s/%s", token, command);
 		if (stat(file_path, &buf) == 0)
 		{
 			free(path_copy);
@@ -191,23 +191,19 @@ int fork_and_exec(char *command, char **args)
 		perror("hsh");
 		return (1);
 	}
+	/* Parent process */
+	do {
+		waitpid(pid, &status, WUNTRACED);
+	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+
+	if (WIFEXITED(status))
+	{
+		return (-1);
+	}
 	else
 	{
-		/* Parent process */
-		do {
-			waitpid(pid, &status, WUNTRACED);
-		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-
-		if (WIFEXITED(status))
-		{
-			return (-1);
-		}
-		else
-		{
-			return (1);
-		}
+		return (1);
 	}
-
 }
 
 /**
@@ -218,11 +214,8 @@ int fork_and_exec(char *command, char **args)
  */
 int execute_command(char **args)
 {
-	pid_t pid;
-	int status;
 	long unsigned int i = 0;
-	char *path, *token, *command_path;
-	char cmd_full_path[1024];
+	char *command_path;
 	char *builtin_func_list[] = {
 		"env",
 		"exit"
