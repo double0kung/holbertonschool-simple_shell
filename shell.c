@@ -8,18 +8,23 @@
 char* _getenv(char* name)
 {
 	int i = 0;
-	char *token;
+	char *token, *dup;
+	
 	while (environ[i])
 	{
-		token = strtok(environ[i], "=");
+		dup = strdup(environ[i]);
+		token = strtok(dup, "=");
 		if (!strcmp(token, name))
 		{
 			token = strtok(NULL, "=");
 			if (token)
+			{
 				return (token);
+			}
 		}
 		i++;
 	}
+	free(dup);
 }
 
 /**
@@ -180,9 +185,11 @@ char *find_command(char *command)
 			free(path_copy);
 			return (file_path);
 		}
+		free(path);
 		free(file_path);
 		token = strtok(NULL, ":");
 	}
+	free(path);
 	free(path_copy);
 	return (NULL);
 }
@@ -203,7 +210,7 @@ int fork_and_exec(char *command, char **args)
 	{
 		execve(command, args, environ);
 		perror("execve failed");
-		exit(EXIT_FAILURE);
+		return(-1);
 	}
 	else if (pid < 0)
 	{
@@ -217,7 +224,8 @@ int fork_and_exec(char *command, char **args)
 
 	if (WIFEXITED(status))
 	{
-		return WEXITSTATUS(status);
+		free(command);
+		return (-1);
 	}
 	else
 	{
@@ -254,18 +262,21 @@ int execute_command(char **args)
 		}
 		i++;
 	}
-
+	//printf("args[0]: %s\n", args[0]);
 	if (strchr(args[0], '/') != NULL)
 	{
 		return (fork_and_exec(args[0], args));
 	}
 	else
 	{
+		printf("args[0]: %s\n", args[0]);
 		command_path = find_command(args[0]);
+		printf("command_path: %s\n", command_path);
 		if (command_path == NULL)
 		{
 			fprintf(stderr, "%s: command not found\n", args[0]);
-			return (127);
+			free(command_path);
+			return (-1);
 		}
 		return (fork_and_exec(command_path, args));
 	}
@@ -278,9 +289,7 @@ int own_exit(char **args)
 	return (0);
 }
 
-int own_env(char *
-
-*args)
+int own_env(char **args)
 {
 	int i = 0;
 	(void)(**args);
