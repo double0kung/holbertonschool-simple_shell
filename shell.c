@@ -186,24 +186,32 @@ char *find_command(char *command)
 	path = _getenv("PATH");
 	if (!path)
 		return (NULL);
+
 	path_copy = strdup(path);
+	if (!path_copy)
+		return (NULL);
+
 	token = strtok(path_copy, ":");
 	while (token != NULL)
 	{
 		file_path = malloc(strlen(token) + strlen(command) + 2);
+		if (!file_path)
+		{
+			free(path_copy);
+			return (NULL);
+		}
+
 		snprintf(file_path, strlen(token) + strlen(command) + 2,
 			 "%s/%s", token, command);
 		if (stat(file_path, &buf) == 0)
 		{
 			free(path_copy);
-			free(path);
 			return (file_path);
 		}
 		free(file_path);
 		token = strtok(NULL, ":");
 	}
 	free(path_copy);
-	free(path);
 	return (NULL);
 }
 
@@ -225,7 +233,7 @@ int fork_and_exec(char *command, char **args)
 		/* Child process */
 		if (execve(command, args, environ) == -1)
 		{
-			/* If execve fails, exit with error code */
+			fprintf(stderr, "./hsh: %s: Command execution failed\n", command);
 			exit(errno == ENOENT ? 127 : 126);
 		}
 	}
@@ -249,6 +257,7 @@ int fork_and_exec(char *command, char **args)
 	return (-1);
 }
 
+
 /**
  * execute_command - Execute a command
  * @args: Array of command arguments
@@ -258,6 +267,7 @@ int fork_and_exec(char *command, char **args)
 int execute_command(char **args)
 {
 	int status;
+	char *full_command_path;
 
 	if (args[0] == NULL || args[0][0] == '\0')
 		return (-1);
@@ -268,17 +278,22 @@ int execute_command(char **args)
 	if (strcmp(args[0], "exit") == 0)
 		return (own_exit(args));
 
-	/* For external commands, always try to execute */
-	status = fork_and_exec(args[0], args);
+	/* For external commands, find the full path */
+	full_command_path = find_command(args[0]);
+	if (full_command_path == NULL)
+	{
+		fprintf(stderr, "./hsh: 1: %s: Command not found\n", args[0]);
+		return (127);
+	}
+
+	/* Execute the command */
+	status = fork_and_exec(full_command_path, args);
+	free(full_command_path);
 
 	if (status == -1)
 	{
-		/* Command execution failed */
-		if (errno == ENOENT)
-			fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
-		else
-			fprintf(stderr, "./hsh: 1: %s: Permission denied\n", args[0]);
-		return (127);  /* Return 127 for command not found or permission denied */
+		fprintf(stderr, "./hsh: 1: %s: Command execution failed\n", args[0]);
+		return (127);  /* Command not found or permission denied */
 	}
 
 	return (status);
