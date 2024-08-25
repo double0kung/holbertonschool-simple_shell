@@ -4,7 +4,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <errno.h>
 
 /**
  * _getenv - Get the value of an environment variable
@@ -186,32 +185,24 @@ char *find_command(char *command)
 	path = _getenv("PATH");
 	if (!path)
 		return (NULL);
-
 	path_copy = strdup(path);
-	if (!path_copy)
-		return (NULL);
-
 	token = strtok(path_copy, ":");
 	while (token != NULL)
 	{
 		file_path = malloc(strlen(token) + strlen(command) + 2);
-		if (!file_path)
-		{
-			free(path_copy);
-			return (NULL);
-		}
-
 		snprintf(file_path, strlen(token) + strlen(command) + 2,
 			 "%s/%s", token, command);
 		if (stat(file_path, &buf) == 0)
 		{
 			free(path_copy);
+			free(path);
 			return (file_path);
 		}
 		free(file_path);
 		token = strtok(NULL, ":");
 	}
 	free(path_copy);
+	free(path);
 	return (NULL);
 }
 
@@ -220,7 +211,7 @@ char *find_command(char *command)
  * @command: Command to execute
  * @args: Array of command arguments
  *
- * Return: Exit status of the command, or -1 on error
+ * Return: Exit status of the command
  */
 int fork_and_exec(char *command, char **args)
 {
@@ -230,73 +221,68 @@ int fork_and_exec(char *command, char **args)
 	pid = fork();
 	if (pid == 0)
 	{
-		/* Child process */
-		if (execve(command, args, environ) == -1)
-		{
-			fprintf(stderr, "./hsh: %s: Command execution failed\n", command);
-			exit(errno == ENOENT ? 127 : 126);
-		}
+		execve(command, args, environ);
+		fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+		exit(127);
 	}
 	else if (pid < 0)
 	{
-		/* Fork failed */
-		perror("fork");
-		return (-1);
+		perror("hsh");
+		return (1);
 	}
+	do {
+		waitpid(pid, &status, WUNTRACED);
+	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+
+	if (WIFEXITED(status))
+		return (WEXITSTATUS(status));
 	else
-	{
-		/* Parent process */
-		do {
-			waitpid(pid, &status, WUNTRACED);
-		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-
-		if (WIFEXITED(status))
-			return (WEXITSTATUS(status));
-	}
-
-	return (-1);
+		return (1);
 }
-
 
 /**
  * execute_command - Execute a command
- * @args: Array of command arguments
+ * @args: Array of command argument
  *
  * Return: Exit status of the command
  */
 int execute_command(char **args)
 {
-	int status;
-	char *full_command_path;
+	unsigned long int i = 0;
+	char *command_path;
+	char *builtin_func_list[] = {
+		"env",
+		"exit"
+	};
+	int (*builtin_func[])(char **) = {
+		&own_env,
+		&own_exit
+	};
 
 	if (args[0] == NULL || args[0][0] == '\0')
 		return (-1);
-
-	/* Check for built-in commands first */
-	if (strcmp(args[0], "env") == 0)
-		return (own_env(args));
-	if (strcmp(args[0], "exit") == 0)
-		return (own_exit(args));
-
-	/* For external commands, find the full path */
-	full_command_path = find_command(args[0]);
-	if (full_command_path == NULL)
+	while (i < sizeof(builtin_func_list) / sizeof(char *))
 	{
-		fprintf(stderr, "./hsh: 1: %s: Command not found\n", args[0]);
-		return (127);
+		if (strcmp(args[0], builtin_func_list[i]) == 0)
+			return ((*builtin_func[i])(args));
+		i++;
 	}
-
-	/* Execute the command */
-	status = fork_and_exec(full_command_path, args);
-	free(full_command_path);
-
-	if (status == -1)
+	if (strchr(args[0], '/') != NULL)
 	{
-		fprintf(stderr, "./hsh: 1: %s: Command execution failed\n", args[0]);
-		return (127);  /* Command not found or permission denied */
+		return (fork_and_exec(args[0], args));
 	}
-
-	return (status);
+	else
+	{
+		command_path = find_command(args[0]);
+		if (command_path == NULL)
+		{
+			fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+			return (127);
+		}
+		i = fork_and_exec(command_path, args);
+		free(command_path);
+		return (i);
+	}
 }
 
 /**
