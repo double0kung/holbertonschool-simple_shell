@@ -45,9 +45,9 @@ void shell_interactive_mode(void)
 
 	do {
 		printf(":) ");
-		fflush(stdout);  /* Ensure the prompt is displayed */
+		fflush(stdout);
 		line = read_line();
-		if (line == NULL)  /* EOF (Ctrl+D) */
+		if (line == NULL)
 			break;
 		args = split_line(line);
 		status = execute_command(args);
@@ -162,7 +162,6 @@ char **split_line(char *line)
 	}
 	tokens[position] = NULL;
 
-	/* If no tokens were found, add an empty string as the first token */
 	if (position == 0)
 	{
 		tokens[0] = "";
@@ -191,7 +190,8 @@ char *find_command(char *command)
 	while (token != NULL)
 	{
 		file_path = malloc(strlen(token) + strlen(command) + 2);
-		snprintf(file_path, strlen(token) + strlen(command) + 2, "%s/%s", token, command);
+		snprintf(file_path, strlen(token) + strlen(command) + 2,
+			 "%s/%s", token, command);
 		if (stat(file_path, &buf) == 0)
 		{
 			free(path_copy);
@@ -223,14 +223,13 @@ int fork_and_exec(char *command, char **args)
 	{
 		execve(command, args, environ);
 		fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
-		exit(127);  /* Exit with 127 if execve fails */
+		exit(127);
 	}
 	else if (pid < 0)
 	{
 		perror("hsh");
 		return (1);
 	}
-	/* Parent process */
 	do {
 		waitpid(pid, &status, WUNTRACED);
 	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
@@ -261,7 +260,7 @@ int execute_command(char **args)
 	};
 
 	if (args[0] == NULL || args[0][0] == '\0')
-		return (-1);  /* Return -1 for empty or whitespace-only commands */
+		return (-1);
 	while (i < sizeof(builtin_func_list) / sizeof(char *))
 	{
 		if (strcmp(args[0], builtin_func_list[i]) == 0)
@@ -278,7 +277,7 @@ int execute_command(char **args)
 		if (command_path == NULL)
 		{
 			fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
-			return (127);  /* Return 127 for command not found */
+			return (127);
 		}
 		i = fork_and_exec(command_path, args);
 		free(command_path);
@@ -286,23 +285,34 @@ int execute_command(char **args)
 	}
 }
 
+/**
+ * own_exit - Built-in exit command
+ * @args: Arguments (unused)
+ *
+ * Return: Always returns 0 to terminate the shell
+ */
 int own_exit(char **args)
 {
 	(void)(**args);
-
 	return (0);
 }
 
+/**
+ * own_env - Built-in env command to print environment variables
+ * @args: Arguments (unused)
+ *
+ * Return: Always returns 0 after printing environment variables
+ */
 int own_env(char **args)
 {
 	int i = 0;
-	(void)(**args);
 
+	(void)(**args);
 	while (environ[i])
 	{
 		write(STDOUT_FILENO, environ[i], strlen(environ[i]));
 		write(STDOUT_FILENO, "\n", 1);
 		i++;
 	}
-	return (-1);
+	return (0);
 }
