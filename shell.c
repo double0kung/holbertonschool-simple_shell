@@ -248,7 +248,8 @@ int fork_and_exec(char *command, char **args)
  */
 int execute_command(char **args)
 {
-	unsigned long int i = 0;
+	unsigned long int j = 0;
+	int i;
 	char *command_path;
 	char *builtin_func_list[] = {
 		"env",
@@ -262,11 +263,11 @@ int execute_command(char **args)
 	if (args[0] == NULL || args[0][0] == '\0')
 		return (-1);  /* Return -1 for empty or whitespace-only commands */
 
-	while (i < sizeof(builtin_func_list) / sizeof(char *))
+	while (j < sizeof(builtin_func_list) / sizeof(char *))
 	{
-		if (strcmp(args[0], builtin_func_list[i]) == 0)
-			return ((*builtin_func[i])(args));
-		i++;
+		if (strcmp(args[0], builtin_func_list[j]) == 0)
+			return ((*builtin_func[j])(args));
+		j++;
 	}
 
 	if (strchr(args[0], '/') != NULL)
