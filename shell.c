@@ -25,6 +25,7 @@ char* _getenv(char* name)
 		i++;
 	}
 	free(dup);
+	return (NULL); /* Added to return a statement */
 }
 
 /**
@@ -262,7 +263,7 @@ int execute_command(char **args)
 		}
 		i++;
 	}
-	//printf("args[0]: %s\n", args[0]);
+	/* printf("args[0]: %s\n", args[0]); */
 	if (strchr(args[0], '/') != NULL)
 	{
 		return (fork_and_exec(args[0], args));
