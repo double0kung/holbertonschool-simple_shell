@@ -5,11 +5,17 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-char* _getenv(char* name)
+/**
+ * _getenv - Get the value of an environment variable
+ * @name: Name of the environment variable
+ *
+ * Return: Value of the environment variable, or NULL if not found
+ */
+char *_getenv(char *name)
 {
 	int i = 0;
-	char *token, *dup;
-	
+	char *token, *dup, *value = NULL;
+
 	while (environ[i])
 	{
 		dup = strdup(environ[i]);
@@ -18,14 +24,14 @@ char* _getenv(char* name)
 		{
 			token = strtok(NULL, "=");
 			if (token)
-			{
-				return (token);
-			}
+				value = strdup(token);
+			free(dup);
+			return (value);
 		}
+		free(dup);
 		i++;
 	}
-	free(dup);
-	return (NULL); /* Added to return a statement */
+	return (NULL);
 }
 
 /**
@@ -54,7 +60,7 @@ void shell_interactive_mode(void)
 }
 
 /**
- * shell_non_interactive_mode - Runs the shell in non-interactive mode
+ * shell_non_interactive_mode - Run the shell in non-interactive mode
  */
 void shell_non_interactive_mode(void)
 {
@@ -66,9 +72,10 @@ void shell_non_interactive_mode(void)
 	{
 		args = split_line(line);
 		status = execute_command(args);
-
 		free(line);
 		free(args);
+		if (status >= 0)
+			exit(status);
 	}
 	exit(status);
 }
@@ -163,9 +170,10 @@ char **split_line(char *line)
 }
 
 /**
- * find_command - find command in PATH
- * @command: name of the program to search for
- * Return: Full path of command or NULL
+ * find_command - Find the full path of a command
+ * @command: Command to find
+ *
+ * Return: Full path of the command, or NULL if not found
  */
 char *find_command(char *command)
 {
@@ -180,26 +188,27 @@ char *find_command(char *command)
 	while (token != NULL)
 	{
 		file_path = malloc(strlen(token) + strlen(command) + 2);
-		snprintf(file_path, 1024, "%s/%s", token, command);
+		snprintf(file_path, strlen(token) + strlen(command) + 2, "%s/%s", token, command);
 		if (stat(file_path, &buf) == 0)
 		{
 			free(path_copy);
+			free(path);
 			return (file_path);
 		}
-		free(path);
 		free(file_path);
 		token = strtok(NULL, ":");
 	}
-	free(path);
 	free(path_copy);
+	free(path);
 	return (NULL);
 }
 
 /**
- * fork_and_exec - fork then exec
- * @command: command to fork
- * @args: args to exec
- * Return: -1 or 1
+ * fork_and_exec - Fork a new process and execute a command
+ * @command: Command to execute
+ * @args: Array of command arguments
+ *
+ * Return: Exit status of the command
  */
 int fork_and_exec(char *command, char **args)
 {
@@ -211,7 +220,7 @@ int fork_and_exec(char *command, char **args)
 	{
 		execve(command, args, environ);
 		perror("execve failed");
-		return(-1);
+		exit(1);
 	}
 	else if (pid < 0)
 	{
@@ -224,62 +233,51 @@ int fork_and_exec(char *command, char **args)
 	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
 
 	if (WIFEXITED(status))
-	{
-		free(command);
-		return (-1);
-	}
+		return (WEXITSTATUS(status));
 	else
-	{
 		return (1);
-	}
 }
 
 /**
- * execute_command - Executes a command
- * @args: Array of arguments
+ * execute_command - Execute a command
+ * @args: Array of command arguments
  *
- * Return: 1 if the shell should continue running, 0 if it should terminate
+ * Return: Exit status of the command
  */
 int execute_command(char **args)
 {
-	long unsigned int i = 0;
+	unsigned long int i = 0;
 	char *command_path;
 	char *builtin_func_list[] = {
 		"env",
 		"exit"
 	};
-	int  (*builtin_func[])(char**) = {
+	int (*builtin_func[])(char **) = {
 		&own_env,
 		&own_exit
 	};
 
 	if (args[0] == NULL || args[0][0] == '\0')
-		return (-1);  /* Return 0 for empty or whitespace-only commands */
+		return (-1);  /* Return -1 for empty or whitespace-only commands */
 	while (i < sizeof(builtin_func_list) / sizeof(char *))
 	{
 		if (strcmp(args[0], builtin_func_list[i]) == 0)
-		{
 			return ((*builtin_func[i])(args));
-		}
 		i++;
 	}
-	/* printf("args[0]: %s\n", args[0]); */
 	if (strchr(args[0], '/') != NULL)
-	{
 		return (fork_and_exec(args[0], args));
-	}
 	else
 	{
-		printf("args[0]: %s\n", args[0]);
 		command_path = find_command(args[0]);
-		printf("command_path: %s\n", command_path);
 		if (command_path == NULL)
 		{
 			fprintf(stderr, "%s: command not found\n", args[0]);
-			free(command_path);
 			return (-1);
 		}
-		return (fork_and_exec(command_path, args));
+		i = fork_and_exec(command_path, args);
+		free(command_path);
+		return (i);
 	}
 }
 
