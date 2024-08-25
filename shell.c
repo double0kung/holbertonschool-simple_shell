@@ -44,19 +44,20 @@ void shell_interactive_mode(void)
 	int status;
 
 	do {
-		printf("$ ");
+		printf(":) ");
+		fflush(stdout);  /* Ensure the prompt is displayed */
 		line = read_line();
+		if (line == NULL)  /* EOF (Ctrl+D) */
+			break;
 		args = split_line(line);
 		status = execute_command(args);
 
 		free(line);
 		free(args);
+	} while (status == -1);
 
-		if (status >= 0)
-		{
-			exit(status);
-		}
-	} while (status == -1);  /* -1 could be your exit condition */
+	if (status >= 0)
+		exit(status);
 }
 
 /**
@@ -72,10 +73,12 @@ void shell_non_interactive_mode(void)
 	{
 		args = split_line(line);
 		status = execute_command(args);
+
 		free(line);
 		free(args);
+
 		if (status >= 0)
-			exit(status);
+			break;
 	}
 	exit(status);
 }
@@ -219,8 +222,8 @@ int fork_and_exec(char *command, char **args)
 	if (pid == 0)
 	{
 		execve(command, args, environ);
-		perror("execve failed");
-		exit(1);
+		fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+		exit(127);  /* Exit with 127 if execve fails */
 	}
 	else if (pid < 0)
 	{
@@ -240,7 +243,7 @@ int fork_and_exec(char *command, char **args)
 
 /**
  * execute_command - Execute a command
- * @args: Array of command arguments
+ * @args: Array of command argument
  *
  * Return: Exit status of the command
  */
@@ -266,14 +269,16 @@ int execute_command(char **args)
 		i++;
 	}
 	if (strchr(args[0], '/') != NULL)
+	{
 		return (fork_and_exec(args[0], args));
+	}
 	else
 	{
 		command_path = find_command(args[0]);
 		if (command_path == NULL)
 		{
-			fprintf(stderr, "%s: command not found\n", args[0]);
-			return (-1);
+			fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+			return (127);  /* Return 127 for command not found */
 		}
 		i = fork_and_exec(command_path, args);
 		free(command_path);
