@@ -207,7 +207,7 @@ char *find_command(char *command)
 }
 
 /**
- * fork_and_exec - Fork a new process and execute a command
+ * fork_and_exec - Fork a new proess and execute a command
  * @command: Command to execute
  * @args: Array of command arguments
  *
@@ -242,7 +242,7 @@ int fork_and_exec(char *command, char **args)
 
 /**
  * execute_command - Execute a command
- * @args: Array of command argument
+ * @args: Array of command arguments
  *
  * Return: Exit status of the command
  */
@@ -260,13 +260,15 @@ int execute_command(char **args)
 	};
 
 	if (args[0] == NULL || args[0][0] == '\0')
-		return (-1);
+		return (-1);  /* Return -1 for empty or whitespace-only commands */
+
 	while (i < sizeof(builtin_func_list) / sizeof(char *))
 	{
 		if (strcmp(args[0], builtin_func_list[i]) == 0)
 			return ((*builtin_func[i])(args));
 		i++;
 	}
+
 	if (strchr(args[0], '/') != NULL)
 	{
 		return (fork_and_exec(args[0], args));
@@ -277,9 +279,15 @@ int execute_command(char **args)
 		if (command_path == NULL)
 		{
 			fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
-			return (127);
+			return (127);  /* Return 127 for command not found */
 		}
 		i = fork_and_exec(command_path, args);
+		if (i == -1)
+		{
+			fprintf(stderr, "./hsh: 1: %s: Permission denied\n", args[0]);
+			free(command_path);
+			return (126);  /* Return 126 for permission denied */
+		}
 		free(command_path);
 		return (i);
 	}
