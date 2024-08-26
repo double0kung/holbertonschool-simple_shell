@@ -1,0 +1,31 @@
+.TH HSH 1 "August 2023" "1.0" "hsh - simple shell man page"
+.SH NAME
+hsh \- simple UNIX command interpreter
+.SH SYNOPSIS
+.B ./hsh
+.SH DESCRIPTION
+.B hsh
+is a simple UNIX command language interpreter that reads commands from either a file or standard input and executes them.
+.SH INVOCATION
+If no args are present and if the standard input of the shell is connected to a terminal, the shell is considered an interactive shell.
+An interactive shell prompts before each command and handles programming and command errors differently.
+.SH ENVIRONMENT
+When a program is invoked, it is given an array of strings called the environment.
+.SH EXIT STATUS
+Errors that are detected by the shell, such as a syntax error, will cause the shell to exit with a non-zero exit status.
+If the shell is not an interactive shell, the execution of the shell file will be aborted.
+Otherwise, the shell will return the exit status of the last command executed, or if the exit builtin is used with a numeric argument, it will return the argument.
+.SH EXAMPLES
+.BR $ ./hsh
+.BR ($) /bin/ls
+.BR hsh main.c shell.c
+.BR ($)
+.BR ($) exit
+.BR $
+
+.SH SEE ALSO
+.BR sh (1)
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+David Zajicek, Volodymyr Gozhyi, Sonny Keo
