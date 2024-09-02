@@ -44,13 +44,13 @@ char *read_stream(void)
  * split_line - Splits a line into tokens
  * @line: The line to split
  *
- * Return: Array of tokens
+ * Return: Array of tokens, or NULL if line is empty or only whitespace
  */
 char **split_line(char *line)
 {
 	int bufsize = 64, position = 0;
 	char **tokens = malloc(bufsize * sizeof(char *));
-	char *token;
+	char *token, *trimmed_line;
 
 	if (!tokens)
 	{
@@ -58,7 +58,18 @@ char **split_line(char *line)
 		exit(EXIT_FAILURE);
 	}
 
-	token = strtok(line, " \t\r\n\a");
+	/* Trim leading and trailing whitespace */
+	trimmed_line = line;
+	while (*trimmed_line == ' ' || *trimmed_line == '\t')
+		trimmed_line++;
+	
+	if (*trimmed_line == '\0')
+	{
+		free(tokens);
+		return (NULL);  /* Return NULL for empty or whitespace-only input */
+	}
+
+	token = strtok(trimmed_line, " \t\r\n\a");
 	while (token != NULL)
 	{
 		tokens[position] = token;
@@ -78,12 +89,6 @@ char **split_line(char *line)
 		token = strtok(NULL, " \t\r\n\a");
 	}
 	tokens[position] = NULL;
-
-	if (position == 0)
-	{
-		tokens[0] = "";
-		tokens[1] = NULL;
-	}
 
 	return (tokens);
 }

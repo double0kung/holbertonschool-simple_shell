@@ -27,13 +27,16 @@ void shell_interactive_mode(void)
 }
 
 /**
- * shell_non_interactive_mode - Run the shell in non-interactive mode
+ * shell_non_interactive_mode - Runs the shell in non-interactive mode
+ *
+ * This function reads and processes input from stdin until EOF.
+ * It handles empty lines and spaces-only input gracefully.
  */
 void shell_non_interactive_mode(void)
 {
 	char *line;
 	char **args;
-	int status = -1;
+	int status = 0;  /* Initialize status to 0 */
 
 	while (1)
 	{
@@ -46,6 +49,8 @@ void shell_non_interactive_mode(void)
 		{
 			status = execute_command(args);
 		}
+		/* If args[0] is NULL, it means the line was empty or only spaces */
+		/* In this case, we don't change the status */
 
 		free(line);
 		free(args);
