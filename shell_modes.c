@@ -33,18 +33,22 @@ void shell_non_interactive_mode(void)
 {
 	char *line;
 	char **args;
-	int status = 0;
+	int status = -1;
 
-	while ((line = read_stream()) != NULL)
+	while (1)
 	{
+		line = read_stream();
+		if (line == NULL)
+			break;
+
 		args = split_line(line);
-		status = execute_command(args);
+		if (args[0] != NULL)
+		{
+			status = execute_command(args);
+		}
 
 		free(line);
 		free(args);
-
-		if (status >= 0)
-			break;
 	}
 	exit(status);
 }
